@@ -6,3 +6,4 @@ backend/api/__pycache__
 dados/brutos/*
 venv/
 frontend/node_modules
+tests/__pycache__
