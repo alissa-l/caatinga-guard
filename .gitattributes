@@ -1,0 +1,1 @@
+dados/banco.sqlite filter=lfs diff=lfs merge=lfs -text

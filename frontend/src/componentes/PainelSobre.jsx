@@ -127,9 +127,6 @@ export default function PainelSobre() {
             </div>
           ))}
         </div>
-        <p style={{ marginTop: 10, fontSize: 12, color: "var(--cor-texto-muted)" }}>
-          edite <code>frontend/src/componentes/PainelSobre.jsx</code> para preencher os nomes.
-        </p>
       </section>
 
       <section className="info-section">
