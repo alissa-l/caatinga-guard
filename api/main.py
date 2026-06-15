@@ -19,3 +19,26 @@ async def lifespan(app: FastAPI):
         pass
     print("API pronta")
     yield
+
+
+
+app = FastAPI(title="Previsor de Incendios RN", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(router)
+
+@app.get("/")
+def raiz():
+    return {"status": "ok", "endpoints": [
+        "/municipios", "/municipios/geojson",
+        "/previsao/{data}", "/previsao/{data}/comparacao",
+        "/previsao/simulacao (POST)", "/previsao/futuro?dias=N",
+        "/modelo/relatorio", "/datas",
+    ]}
