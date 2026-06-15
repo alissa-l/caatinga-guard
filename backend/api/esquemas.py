@@ -10,7 +10,7 @@ class Municipio(BaseModel):
     centro_lon: float
     area_km2: float
 
-class PrevisaoDia(BaseModel):
+class PrevisaoMunicipio(BaseModel):
     codigo_ibge: str
     probabilidade: float
 
