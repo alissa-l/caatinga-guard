@@ -59,15 +59,39 @@ previsor-incendios-ne/
 ## Como rodar
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r backend/requirements.txt
+# Cria o ambiente virtual
+python -m venv .venv
 
-PATH=.venv/bin:$PATH make baixar     # downloads (idempotente)
-PATH=.venv/bin:$PATH make processar  # ETL completo
-PATH=.venv/bin:$PATH make treinar    # treina modelos e gera métricas
-PATH=.venv/bin:$PATH make servir     # sobe API em localhost:8000
+# Ativa o ambiente
+.venv\Scripts\activate
 
-cd frontend && npm install && npm run dev    # frontend em localhost:5173
+# Instala as dependências do backend
+pip install -r backend/requirements.txt
+
+#Coletar os dados, processar e treinar
+# 1. Baixar os dados brutos (IBGE, INPE, INMET)
+python -m backend.coleta.baixar_ibge
+python -m backend.coleta.baixar_bioma
+python -m backend.coleta.baixar_dbqueimadas
+python -m backend.coleta.baixar_inmet
+
+# 2. Processar, limpar e cruzar as informações
+python -m backend.tratamento.montar_dataset
+
+# 3. Treinar o modelo de Inteligência Artificial
+python -m backend.modelo.treinar
+
+# Inicia a API na porta 8000
+python -m uvicorn backend.api.main:app --reload --port 8000
+
+# Entra na pasta do frontend
+cd frontend
+
+# Instala as dependências do Node.js
+npm install
+
+# Inicia o servidor visual
+npm run dev
 ```
 
 O frontend está configurado para fazer proxy de `/api/*` para a API local. Suba a API antes do frontend.
