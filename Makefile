@@ -1,4 +1,4 @@
-PY=python
+PY=python3
 
 .PHONY: instalar baixar baixar-osm baixar-bioma processar treinar testar servir frontend tudo limpar
 

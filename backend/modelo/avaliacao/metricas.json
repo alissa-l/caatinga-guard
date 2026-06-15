@@ -1,0 +1,373 @@
+{
+  "random_forest": {
+    "val": {
+      "auc": 0.8206614918098848,
+      "ap": 0.009969676808634042,
+      "acc": 0.9979712705736069,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "confusao": [
+        [
+          30499,
+          0
+        ],
+        [
+          62,
+          0
+        ]
+      ],
+      "n": 30561,
+      "positivos": 62
+    },
+    "teste": {
+      "auc": 0.797643896858456,
+      "ap": 0.045578304904477895,
+      "acc": 0.990150845849285,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "confusao": [
+        [
+          30260,
+          0
+        ],
+        [
+          301,
+          0
+        ]
+      ],
+      "n": 30561,
+      "positivos": 301
+    },
+    "teste_pre_calibracao": {
+      "auc": 0.797643896858456,
+      "ap": 0.045578304904477895,
+      "acc": 0.8638787997774942,
+      "precision": 0.03894862604540024,
+      "recall": 0.5415282392026578,
+      "f1": 0.07267053053945609,
+      "confusao": [
+        [
+          26238,
+          4022
+        ],
+        [
+          138,
+          163
+        ]
+      ],
+      "n": 30561,
+      "positivos": 301
+    },
+    "amigaveis": {
+      "taxa_real": 0.009849154150714964,
+      "taxa_prevista_media": 0.006983537546525284,
+      "brier": 0.009608909387160828,
+      "n_dias": 183,
+      "n_dias_com_focos": 91,
+      "total_focos": 301,
+      "recall_top5": 0.16943521594684385,
+      "lift_top5": 5.659136212624585,
+      "dias_com_hit_top5": 40,
+      "recall_top10": 0.23920265780730898,
+      "lift_top10": 3.99468438538206,
+      "dias_com_hit_top10": 48,
+      "recall_top20": 0.4186046511627907,
+      "lift_top20": 3.4953488372093027,
+      "dias_com_hit_top20": 65
+    },
+    "importancias": {
+      "temp_media": 0.011454738347966061,
+      "temp_max": 0.012121913114480349,
+      "temp_min": 0.010636020791793621,
+      "umid_media": 0.010669057000317745,
+      "chuva_dia": 0.004454040710702059,
+      "vento_medio": 0.011394229245189859,
+      "rad_media": 0.011111682385024177,
+      "ffmc": 0.010342344686237754,
+      "dmc": 0.009589010756683919,
+      "dc": 0.01099016429669962,
+      "isi": 0.011397020116390103,
+      "bui": 0.010323173423225843,
+      "fwi": 0.010752606913950375,
+      "n_focos": 0.00018562276215760198,
+      "focos_lag_1": 0.0006244207992797392,
+      "focos_lag_3": 9.17142744181716e-05,
+      "focos_lag_7": 0.00019086818112788476,
+      "focos_acum_30d": 0.06708030899281414,
+      "focos_acum_90d": 0.06092969534249018,
+      "chuva_acum_7d": 0.00835626233443663,
+      "chuva_acum_30d": 0.013502223494246582,
+      "dias_sem_chuva": 0.007567100342180058,
+      "taxa_historica_municipio": 0.11052412585735889,
+      "taxa_historica_municipio_mes": 0.4047216871922281,
+      "area_km2": 0.014101586173851311,
+      "centro_lat": 0.01300205684032118,
+      "centro_lon": 0.018369893536586437,
+      "distancia_litoral_km": 0.017282318676958782,
+      "bioma_caatinga": 0.00012827599595807398,
+      "bioma_mata_atlantica": 0.00018560282391528812,
+      "osm_estradas_km": 0.0,
+      "osm_estradas_principais_km": 0.0,
+      "osm_pasto_km2": 0.0,
+      "osm_cultivo_km2": 0.0,
+      "mes_sin": 0.01675432593968709,
+      "mes_cos": 0.03259531705847978,
+      "doy_sin": 0.05060017391503707,
+      "doy_cos": 0.027970417677805785
+    },
+    "calibrado": true
+  },
+  "random_forest_nao_balanceado": {
+    "val": {
+      "auc": 0.8253967078772545,
+      "ap": 0.01575331438773189,
+      "acc": 0.9979712705736069,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "confusao": [
+        [
+          30499,
+          0
+        ],
+        [
+          62,
+          0
+        ]
+      ],
+      "n": 30561,
+      "positivos": 62
+    },
+    "teste": {
+      "auc": 0.8083891434807527,
+      "ap": 0.06475201131940429,
+      "acc": 0.990150845849285,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "confusao": [
+        [
+          30260,
+          0
+        ],
+        [
+          301,
+          0
+        ]
+      ],
+      "n": 30561,
+      "positivos": 301
+    }
+  },
+  "lightgbm": {
+    "val": {
+      "auc": 0.6915620713106404,
+      "ap": 0.011366144379760476,
+      "acc": 0.9979712705736069,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "confusao": [
+        [
+          30499,
+          0
+        ],
+        [
+          62,
+          0
+        ]
+      ],
+      "n": 30561,
+      "positivos": 62
+    },
+    "teste": {
+      "auc": 0.7316551679464575,
+      "ap": 0.03033051664598297,
+      "acc": 0.990150845849285,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "confusao": [
+        [
+          30260,
+          0
+        ],
+        [
+          301,
+          0
+        ]
+      ],
+      "n": 30561,
+      "positivos": 301
+    },
+    "teste_pre_calibracao": {
+      "auc": 0.7316551679464575,
+      "ap": 0.03033051664598297,
+      "acc": 0.9761133470763391,
+      "precision": 0.055900621118012424,
+      "recall": 0.08970099667774087,
+      "f1": 0.06887755102040816,
+      "confusao": [
+        [
+          29804,
+          456
+        ],
+        [
+          274,
+          27
+        ]
+      ],
+      "n": 30561,
+      "positivos": 301
+    },
+    "amigaveis": {
+      "taxa_real": 0.009849154150714964,
+      "taxa_prevista_media": 0.005852260263779597,
+      "brier": 0.00976332289888979,
+      "n_dias": 183,
+      "n_dias_com_focos": 91,
+      "total_focos": 301,
+      "recall_top5": 0.10299003322259136,
+      "lift_top5": 3.4398671096345512,
+      "dias_com_hit_top5": 24,
+      "recall_top10": 0.16279069767441862,
+      "lift_top10": 2.718604651162791,
+      "dias_com_hit_top10": 34,
+      "recall_top20": 0.2857142857142857,
+      "lift_top20": 2.3857142857142857,
+      "dias_com_hit_top20": 51
+    },
+    "importancias": {
+      "temp_media": 1239,
+      "temp_max": 1497,
+      "temp_min": 1780,
+      "umid_media": 1259,
+      "chuva_dia": 585,
+      "vento_medio": 1628,
+      "rad_media": 1812,
+      "ffmc": 1077,
+      "dmc": 870,
+      "dc": 1010,
+      "isi": 1049,
+      "bui": 806,
+      "fwi": 1061,
+      "n_focos": 198,
+      "focos_lag_1": 141,
+      "focos_lag_3": 152,
+      "focos_lag_7": 83,
+      "focos_acum_30d": 691,
+      "focos_acum_90d": 778,
+      "chuva_acum_7d": 1136,
+      "chuva_acum_30d": 1408,
+      "dias_sem_chuva": 1106,
+      "taxa_historica_municipio": 747,
+      "taxa_historica_municipio_mes": 1050,
+      "area_km2": 887,
+      "centro_lat": 852,
+      "centro_lon": 726,
+      "distancia_litoral_km": 435,
+      "bioma_caatinga": 12,
+      "bioma_mata_atlantica": 2,
+      "osm_estradas_km": 0,
+      "osm_estradas_principais_km": 0,
+      "osm_pasto_km2": 0,
+      "osm_cultivo_km2": 0,
+      "mes_sin": 135,
+      "mes_cos": 150,
+      "doy_sin": 1318,
+      "doy_cos": 1336
+    },
+    "calibrado": true
+  },
+  "lightgbm_nao_balanceado": {
+    "val": {
+      "auc": 0.8337626617054604,
+      "ap": 0.011613664230513007,
+      "acc": 0.9979712705736069,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "confusao": [
+        [
+          30499,
+          0
+        ],
+        [
+          62,
+          0
+        ]
+      ],
+      "n": 30561,
+      "positivos": 62
+    },
+    "teste": {
+      "auc": 0.7962541692924884,
+      "ap": 0.04283637316395682,
+      "acc": 0.9891364811360884,
+      "precision": 0.10256410256410256,
+      "recall": 0.013289036544850499,
+      "f1": 0.023529411764705882,
+      "confusao": [
+        [
+          30225,
+          35
+        ],
+        [
+          297,
+          4
+        ]
+      ],
+      "n": 30561,
+      "positivos": 301
+    }
+  },
+  "_meta": {
+    "ano_inicio": 2020,
+    "ano_fim": 2024,
+    "corte_treino_val": "2024-01-01",
+    "corte_val_teste": "2024-07-02",
+    "n_features": 38,
+    "features": [
+      "temp_media",
+      "temp_max",
+      "temp_min",
+      "umid_media",
+      "chuva_dia",
+      "vento_medio",
+      "rad_media",
+      "ffmc",
+      "dmc",
+      "dc",
+      "isi",
+      "bui",
+      "fwi",
+      "n_focos",
+      "focos_lag_1",
+      "focos_lag_3",
+      "focos_lag_7",
+      "focos_acum_30d",
+      "focos_acum_90d",
+      "chuva_acum_7d",
+      "chuva_acum_30d",
+      "dias_sem_chuva",
+      "taxa_historica_municipio",
+      "taxa_historica_municipio_mes",
+      "area_km2",
+      "centro_lat",
+      "centro_lon",
+      "distancia_litoral_km",
+      "bioma_caatinga",
+      "bioma_mata_atlantica",
+      "osm_estradas_km",
+      "osm_estradas_principais_km",
+      "osm_pasto_km2",
+      "osm_cultivo_km2",
+      "mes_sin",
+      "mes_cos",
+      "doy_sin",
+      "doy_cos"
+    ]
+  }
+}

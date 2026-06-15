@@ -1,0 +1,8 @@
+backend/__pycache__
+backend/coleta/__pycache__
+backend/tratamento/__pycache__
+backend/modelo/__pycache__
+backend/api/__pycache__
+dados/brutos/*
+venv/
+frontend/node_modules
