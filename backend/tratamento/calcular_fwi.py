@@ -15,7 +15,6 @@ DC0 = 15.0
 
 
 def _ffmc(temp, umid, vento, chuva, ffmc_ant):
-    # Van Wagner & Pickett 1985, codigo classico
     mo = 147.2 * (101.0 - ffmc_ant) / (59.5 + ffmc_ant)
     if chuva > 0.5:
         rf = chuva - 0.5

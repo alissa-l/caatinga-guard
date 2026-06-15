@@ -2,9 +2,15 @@ import React from "react";
 
 // Componentes do grupo
 const DISCENTES = [
-  { nome: "Alissa de Lima Araújo"},
-  { nome: "Pedro Lucas de Souza Martins" },
-  { nome: "Nicholas Reyel Lima e Silva" },
+  { 
+    nome: "Alissa de Lima Araújo"
+  },
+  { 
+    nome: "Pedro Lucas de Souza Martins" 
+  },
+  { 
+    nome: "Nicholas Reyel Lima e Silva" 
+  },
 ];
 
 const TECNOLOGIAS = [

@@ -4,15 +4,19 @@ function corPorProba(p) {
   if (p < 0.005) {
     return "#15803d";
   }
+
   if (p < 0.01)  {
     return "#84cc16";
   }
+
   if (p < 0.02)  {
     return "#eab308";
   }
+
   if (p < 0.04)  {
     return "#ea580c";
   }
+  
   return "#b91c1c";
 }
 

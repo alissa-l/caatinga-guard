@@ -50,6 +50,7 @@ function StatusBadge({ ok, alvo, valor, sufixo = "" }) {
   // ok="quase": amarelo
   const cor = ok === true ? "#166534" : ok === "quase" ? "#a16207" : "#991b1b";
   const bg = ok === true ? "#dcfce7" : ok === "quase" ? "#fef3c7" : "#fee2e2";
+  
   return (
     <span style={{
       display: "inline-block", padding: "2px 10px", background: bg, color: cor,

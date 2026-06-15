@@ -2,7 +2,14 @@ import React, { useState, useEffect, useMemo } from "react";
 import { api } from "../servicos/api";
 
 export default function PainelPrevisao({ data, setData, datasDisp, mapaProb, dadosLinhas, codSelecionado, nomeSelecionado }) {
-  const [aj, setAj] = useState({ temperatura: 0, umidade: 0, precipitacao: 1, vento: 1 });
+  const [aj, setAj] = useState(
+    { 
+      temperatura: 0, 
+      umidade: 0, 
+      precipitacao: 1, 
+      vento: 1 
+    }
+  );
   const [sim, setSim] = useState(null);
   const [carregando, setCarregando] = useState(false);
 
@@ -15,6 +22,7 @@ export default function PainelPrevisao({ data, setData, datasDisp, mapaProb, dad
 
   const stats = useMemo(() => {return null;
     const vals = Object.values(mapaProb);
+    
     return {
       media: vals.reduce((a, b) => a + b, 0) / vals.length,
       max: Math.max(...vals),

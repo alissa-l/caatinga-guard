@@ -6,15 +6,19 @@ function corPorProba(p) {
   if (p == null || isNaN(p)) {
     return "#d6d3d1";
   }
+  
   if (p < 0.005) {
     return "#15803d";
   }
+
   if (p < 0.01)  {
     return "#84cc16";
   }
+
   if (p < 0.02)  {
     return "#eab308";
   }
+
   if (p < 0.04)  {
     return "#ea580c";
   }
@@ -25,9 +29,11 @@ function corComparacaoTopN(estaNoTopN, real) {
   if (estaNoTopN && real === 1) {
     return "#7c2d12";
   }
+
   if (estaNoTopN) {
     return "#fbbf24";
   }
+
   if (real === 1) {
     return "#dc2626";
   }

@@ -23,6 +23,7 @@ export default function PainelComparacao({ data, setData, datasDisp, dadosLinhas
     if (onTopNChange) {
         onTopNChange(new Set(topN.map((t) => t.codigo_ibge)));
     }
+    
   }, [topN, onTopNChange]);
 
   if (!dadosLinhas) {
