@@ -3,6 +3,7 @@
 
 import joblib
 import numpy as np
+from sklearn.ensemble import RandomForestClassifier
 
 
 class ModeloBase:
@@ -20,6 +21,54 @@ class ModeloBase:
     @classmethod
     def carregar(cls, caminho):
         return joblib.load(caminho)
+
+
+class BalancedBaggingRF:
+    """Random Forest com balanceamento por undersampling + ensemble.
+
+    Cada um dos `n_ensembles` estimadores ve TODOS os positivos mais uma
+    amostra aleatoria de negativos na razao `razao_neg`:1, e as probabilidades
+    sao promediadas. Reproduz a ideia do BalancedRandomForest (imbalanced-learn)
+    sem dependencia nova. Com taxa base ~1%, supera class_weight='balanced':
+    cada arvore enxerga uma fracao decente de positivos em vez de reponderar um
+    punhado deles num mar de negativos.
+
+    Vive em base.py (e nao em treinar.py) para que joblib desserialize o
+    artefato em qualquer entrypoint - API, notebook, etc."""
+
+    def __init__(self, n_ensembles=15, razao_neg=3, semente=42, **rf_params):
+        self.n_ensembles = n_ensembles
+        self.razao_neg = razao_neg
+        self.semente = semente
+        self.rf_params = rf_params
+        self.modelos = []
+        self.classes_ = np.array([0, 1])
+
+    def fit(self, X, y):
+        X = X.reset_index(drop=True)
+        y = np.asarray(y)
+        pos = np.where(y == 1)[0]
+        neg = np.where(y == 0)[0]
+        n_neg = min(len(neg), len(pos) * self.razao_neg)
+        rng = np.random.RandomState(self.semente)
+        self.modelos = []
+        for i in range(self.n_ensembles):
+            amostra_neg = rng.choice(neg, size=n_neg, replace=False)
+            idx = np.concatenate([pos, amostra_neg])
+            rng.shuffle(idx)
+            params = {**self.rf_params, "random_state": self.semente + i}
+            rf = RandomForestClassifier(**params)
+            rf.fit(X.iloc[idx], y[idx])
+            self.modelos.append(rf)
+        return self
+
+    def predict_proba(self, X):
+        ps = np.mean([m.predict_proba(X)[:, 1] for m in self.modelos], axis=0)
+        return np.column_stack([1 - ps, ps])
+
+    @property
+    def feature_importances_(self):
+        return np.mean([m.feature_importances_ for m in self.modelos], axis=0)
 
 
 class ModeloCalibrado:

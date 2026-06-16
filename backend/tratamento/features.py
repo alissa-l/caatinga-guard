@@ -74,6 +74,130 @@ def adicionar_focos_acumulados(df, janelas=(30, 90)):
     return df
 
 
+# ---------------------------------------------------------------------------
+# FASE 1 - recuperacao do sinal dinamico (meteorologia/FWI sub-aproveitado).
+#
+# Diagnostico (ver README, secao "Diagnostico e fase 1"): o modelo de producao
+# tinha ~64% da importancia concentrada em priors estaticos (taxa historica do
+# municipio-mes, focos acumulados) e so ~13% nas 13 features meteo/FWI somadas.
+# Ou seja, era quase um climatologico: aprendia "que municipio queima em que
+# mes" e quase ignorava o tempo do dia.
+#
+# As funcoes abaixo extraem TENDENCIA (nao so nivel), INTERACOES risco x seca e
+# VIZINHANCA espacial. Todas terminam no dia D (condicoes de hoje, usadas para
+# prever D+1) ou usam shift no passado - nenhuma enxerga o futuro D+1.
+# ---------------------------------------------------------------------------
+
+
+def adicionar_tendencias_meteo(df):
+    """Derivadas dinamicas de FWI/ISI/meteo. Capturam a TENDENCIA recente
+    (secagem, agravamento do risco) e nao apenas o nivel instantaneo - que e
+    ruidoso porque o IDW interpola de poucas estacoes. Janelas terminam no dia
+    D (incluem D); deltas usam D vs dias anteriores. Sem vazamento de D+1."""
+    df = df.sort_values(["codigo_ibge", "data"]).copy()
+    g = df.groupby("codigo_ibge")
+
+    # variacao recente do FWI: positivo = risco subindo
+    df["fwi_delta_1d"] = g["fwi"].diff(1)
+    df["fwi_delta_3d"] = g["fwi"].diff(3)
+    # nivel suavizado e pico recente do FWI (janela inclui D)
+    df["fwi_media_3d"] = g["fwi"].transform(lambda s: s.rolling(3, min_periods=1).mean())
+    df["fwi_media_7d"] = g["fwi"].transform(lambda s: s.rolling(7, min_periods=1).mean())
+    df["fwi_max_7d"] = g["fwi"].transform(lambda s: s.rolling(7, min_periods=1).max())
+    # propagacao inicial recente (ISI suavizado)
+    df["isi_media_3d"] = g["isi"].transform(lambda s: s.rolling(3, min_periods=1).mean())
+    # secagem do ar nos ultimos 3 dias (positivo = umidade caindo)
+    df["umid_delta_3d"] = -g["umid_media"].diff(3)
+    # tendencia de calor
+    df["temp_max_media_3d"] = g["temp_max"].transform(lambda s: s.rolling(3, min_periods=1).mean())
+
+    # diff gera NaN nas primeiras linhas de cada municipio -> 0 (sem variacao conhecida)
+    for c in ["fwi_delta_1d", "fwi_delta_3d", "umid_delta_3d"]:
+        df[c] = df[c].fillna(0.0)
+    return df
+
+
+def adicionar_interacoes(df):
+    """Interacoes explicitas risco x seca. Arvores capturam interacoes
+    implicitamente, mas entregar o produto pronto ajuda a isolar os dias
+    realmente perigosos (FWI alto E seca longa, calor E muitos dias sem chuva)."""
+    df = df.copy()
+    df["fwi_x_dias_sem_chuva"] = df["fwi"].fillna(0) * df["dias_sem_chuva"]
+    df["temp_max_x_dias_sem_chuva"] = df["temp_max"].fillna(0) * df["dias_sem_chuva"]
+    # seca combinada com vento: condicao classica de espalhamento de fogo
+    df["seca_x_vento"] = df["dias_sem_chuva"] * df["vento_medio"].fillna(0)
+    return df
+
+
+def adicionar_vizinhanca(df, k=6):
+    """Features de vizinhanca espacial: focos e risco nos k municipios mais
+    proximos (por centroide). Ignicao e propagacao tem autocorrelacao espacial
+    - um foco ontem num vizinho eleva o risco de hoje->amanha aqui. Os focos do
+    vizinho usam shift(1) (passado); o FWI do vizinho e do dia D (disponivel).
+    Antes desta feature cada municipio era tratado como uma ilha isolada."""
+    df = df.copy()
+    df["_cod"] = df["codigo_ibge"].astype(str)
+
+    coords = (
+        df[["_cod", "centro_lat", "centro_lon"]]
+        .drop_duplicates("_cod")
+        .reset_index(drop=True)
+    )
+    cods = coords["_cod"].values
+    lat = coords["centro_lat"].values.astype(float)
+    lon = coords["centro_lon"].values.astype(float)
+
+    # matriz de distancia haversine municipio x municipio
+    la1 = np.radians(lat)[:, None]
+    lo1 = np.radians(lon)[:, None]
+    la2 = np.radians(lat)[None, :]
+    lo2 = np.radians(lon)[None, :]
+    dlat = la2 - la1
+    dlon = lo2 - lo1
+    a = np.sin(dlat / 2) ** 2 + np.cos(la1) * np.cos(la2) * np.sin(dlon / 2) ** 2
+    dist = 2 * 6371.0 * np.arcsin(np.sqrt(a))
+    np.fill_diagonal(dist, np.inf)  # exclui o proprio municipio
+    viz_idx = np.argsort(dist, axis=1)[:, :k]  # (n, k)
+
+    # pivots data x municipio na ordem de `cods`
+    pn = df.pivot_table(index="data", columns="_cod", values="n_focos", aggfunc="sum").reindex(columns=cods)
+    pf = df.pivot_table(index="data", columns="_cod", values="fwi", aggfunc="mean").reindex(columns=cods)
+    mat_n = pn.values.astype(np.float32)
+    mat_f = pf.values.astype(np.float32)
+    nd, n = mat_n.shape
+
+    # focos do vizinho com 1 dia de defasagem, e acumulado dos 3 dias anteriores
+    n_lag1 = np.vstack([np.zeros((1, n), dtype=np.float32), mat_n[:-1]])
+    n_acum3 = pd.DataFrame(mat_n).shift(1).rolling(3, min_periods=1).sum().fillna(0).values
+
+    focos_viz_lag1 = np.zeros((nd, n), dtype=np.float32)
+    focos_viz_acum3 = np.zeros((nd, n), dtype=np.float32)
+    fwi_viz = np.zeros((nd, n), dtype=np.float32)
+    for i in range(n):
+        js = viz_idx[i]
+        focos_viz_lag1[:, i] = n_lag1[:, js].sum(axis=1)
+        focos_viz_acum3[:, i] = n_acum3[:, js].sum(axis=1)
+        fwi_viz[:, i] = np.nanmean(mat_f[:, js], axis=1)
+
+    datas = pn.index
+    blocos = []
+    for i in range(n):
+        blocos.append(pd.DataFrame({
+            "_cod": cods[i],
+            "data": datas,
+            "focos_vizinhos_lag_1": focos_viz_lag1[:, i],
+            "focos_vizinhos_acum_3d": focos_viz_acum3[:, i],
+            "fwi_vizinhos": fwi_viz[:, i],
+        }))
+    viz = pd.concat(blocos, ignore_index=True)
+
+    df = df.merge(viz, on=["_cod", "data"], how="left")
+    df["fwi_vizinhos"] = df["fwi_vizinhos"].fillna(df["fwi"])
+    for c in ["focos_vizinhos_lag_1", "focos_vizinhos_acum_3d"]:
+        df[c] = df[c].fillna(0.0)
+    return df.drop(columns="_cod")
+
+
 def adicionar_taxas_historicas(df, corte_data_treino):
     """Mean encoding por municipio e municipio-mes usando SO o periodo de
     treino (datas < corte_data_treino). Aplica como feature em todas as

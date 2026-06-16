@@ -15,11 +15,11 @@ from sklearn.isotonic import IsotonicRegression
 from sklearn.metrics import (
     roc_auc_score, precision_score, recall_score, f1_score,
     accuracy_score, confusion_matrix, roc_curve, precision_recall_curve,
-    average_precision_score,
+    average_precision_score, fbeta_score,
 )
 import lightgbm as lgb
 
-from backend.modelo.base import ModeloCalibrado
+from backend.modelo.base import ModeloCalibrado, BalancedBaggingRF
 
 from backend import configuracao as cfg
 
@@ -41,6 +41,13 @@ FEATURES = [
     "focos_acum_30d", "focos_acum_90d",
     # chuva acumulada
     "chuva_acum_7d", "chuva_acum_30d", "dias_sem_chuva",
+    # FASE 1 - tendencia dinamica de FWI/meteo (variacao e janelas recentes)
+    "fwi_delta_1d", "fwi_delta_3d", "fwi_media_3d", "fwi_media_7d", "fwi_max_7d",
+    "isi_media_3d", "umid_delta_3d", "temp_max_media_3d",
+    # FASE 1 - interacoes risco x seca
+    "fwi_x_dias_sem_chuva", "temp_max_x_dias_sem_chuva", "seca_x_vento",
+    # FASE 1 - vizinhanca espacial (focos/risco nos municipios proximos)
+    "focos_vizinhos_lag_1", "focos_vizinhos_acum_3d", "fwi_vizinhos",
     # historico do municipio (mean encoding leakage-safe)
     "taxa_historica_municipio", "taxa_historica_municipio_mes",
     # geograficas
@@ -90,6 +97,23 @@ def _metricas(y, p, thr=0.5):
         "n": int(len(y)),
         "positivos": int(y.sum()),
     }
+
+
+def _melhor_limiar(p_val, y_val, beta=2.0):
+    """Limiar que maximiza F-beta na VALIDACAO. Com taxa base ~1% o limiar
+    fixo 0.5 deixa as metricas binarias zeradas (apos calibracao quase nada
+    passa de 0.5) - inutil. beta=2 prioriza recall: num alerta de incendio,
+    deixar passar um foco (FN) custa mais que um falso alarme (FP). O limiar e
+    escolhido na validacao e so depois aplicado ao teste, sem vazamento."""
+    melhor_f, melhor_thr = 0.0, 0.5
+    for thr in np.unique(np.round(p_val, 4)):
+        yp = (p_val >= thr).astype(int)
+        if yp.sum() == 0:
+            continue
+        f = fbeta_score(y_val, yp, beta=beta, zero_division=0)
+        if f > melhor_f:
+            melhor_f, melhor_thr = f, float(thr)
+    return melhor_thr
 
 
 def _metricas_amigaveis(y, p, datas_por_linha, n_munis=167, ks=(5, 10, 20)):
@@ -147,22 +171,37 @@ def _curva_recall(y, p, datas_por_linha, n_munis=167, k_max=50):
 
 
 def _treinar_rf(Xt, yt, Xv, yv, balanceado=True, params=None):
-    # class_weight='balanced' eh obrigatorio aqui porque a taxa base de
-    # houve_foco_d1 fica perto de 1%. Sem isso, o RF "ganha" o treino prevendo
-    # tudo como negativo e o split do no fica insensivel a focos. A
-    # probabilidade fica inflada, mas isso eh corrigido depois pela
-    # IsotonicRegression (ver docs/diagnostico_falsos_positivos.md).
+    # Tratamento de desbalanceamento (taxa base de houve_foco_d1 ~1%). Sem
+    # balanceamento o RF "ganha" o treino prevendo tudo como negativo e o split
+    # do no fica insensivel a focos.
+    #
+    # balanceado=True usa BalancedBaggingRF (undersampling 3:1 + ensemble de 15):
+    # comparado a class_weight='balanced' num experimento controlado
+    # (experimento_balanceamento.py), elevou o AP de teste de 0.044 para 0.062 e
+    # o recall@10 de 0.26 para 0.34. Cada arvore ve uma fracao decente de
+    # positivos em vez de reponderar um punhado deles. A probabilidade ainda eh
+    # corrigida depois pela IsotonicRegression.
     base_params = dict(
         n_estimators=200,
         max_depth=14,
         min_samples_leaf=20,
         n_jobs=-1,
-        class_weight="balanced" if balanceado else None,
         random_state=42,
     )
+    # n_ensembles e razao_neg controlam o bagging (nao sao params do RF-base);
+    # a busca de hiperparams pode otimiza-los, entao os separamos antes de
+    # repassar o resto ao RandomForestClassifier.
+    n_ensembles, razao_neg = 15, 3
     if params:
+        params = dict(params)
+        n_ensembles = params.pop("n_ensembles", n_ensembles)
+        razao_neg = params.pop("razao_neg", razao_neg)
         base_params.update(params)
-    rf = RandomForestClassifier(**base_params)
+    if balanceado:
+        return BalancedBaggingRF(
+            n_ensembles=n_ensembles, razao_neg=razao_neg, semente=42, **base_params
+        ).fit(Xt, yt)
+    rf = RandomForestClassifier(class_weight=None, **base_params)
     rf.fit(Xt, yt)
     return rf
 
@@ -292,10 +331,13 @@ def main():
     rf_cal = ModeloCalibrado(rf, iso_rf)
     p_val = rf_cal.predict_proba(Xv_imp)[:, 1]
     p_teste = rf_cal.predict_proba(Xte_imp)[:, 1]
+    thr_rf = _melhor_limiar(p_val, yv, beta=2.0)
     resultados["random_forest"] = {
         "val": _metricas(yv, p_val),
         "teste": _metricas(yte, p_teste),
         "teste_pre_calibracao": _metricas(yte, p_teste_raw),
+        "limiar_operacional": thr_rf,
+        "teste_no_limiar": _metricas(yte, p_teste, thr=thr_rf),
         "amigaveis": _metricas_amigaveis(yte, p_teste, datas_teste),
         "importancias": importancias_rf,
         "calibrado": True,
@@ -321,10 +363,13 @@ def main():
     lg_cal = ModeloCalibrado(lg, iso_lg)
     p_val = lg_cal.predict_proba(Xv)[:, 1]
     p_teste = lg_cal.predict_proba(Xte)[:, 1]
+    thr_lg = _melhor_limiar(p_val, yv, beta=2.0)
     resultados["lightgbm"] = {
         "val": _metricas(yv, p_val),
         "teste": _metricas(yte, p_teste),
         "teste_pre_calibracao": _metricas(yte, p_teste_raw_lg),
+        "limiar_operacional": thr_lg,
+        "teste_no_limiar": _metricas(yte, p_teste, thr=thr_lg),
         "amigaveis": _metricas_amigaveis(yte, p_teste, datas_teste),
         "importancias": importancias_lg,
         "calibrado": True,

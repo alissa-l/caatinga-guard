@@ -84,8 +84,13 @@ const GLOSSARIO = [
     sigla: "Precisão@N", 
     nome: "Precisão no top-N", 
     desc: "Dos N municípios apontados como mais arriscados, quantos efetivamente tiveram foco em D+1." },
-  { 
-    sigla: "Calibração isotônica", 
+  {
+    sigla: "Vizinhança espacial",
+    nome: "Features dos municípios próximos",
+    desc: "Focos e FWI dos 6 municípios mais próximos pelo centroide, usados como feature (com defasagem de dias). Ignição e propagação têm autocorrelação espacial — fogo num vizinho ontem eleva o risco aqui hoje.",
+  },
+  {
+    sigla: "Calibração isotônica",
     nome: "Calibração de probabilidades", 
     desc: "Ajuste pós-treino que faz a probabilidade prevista refletir a frequência real do evento, corrigindo o efeito do balanceamento de classes durante o treino." 
   },
@@ -213,6 +218,15 @@ export default function PainelSobre() {
           município e do município-mês — calculado <i>somente</i> sobre o período de treino
           para evitar vazamento.
         </p>
+        <p>
+          <b>Features dinâmicas.</b> Além do nível instantâneo, o modelo usa features que medem{" "}
+          <b>tendência</b> (variação e janelas recentes de FWI, ISI, temperatura e umidade — não
+          só o valor instantâneo, que é ruidoso por causa da interpolação),{" "}
+          <b>interação risco × seca</b> (FWI × dias sem chuva, calor × seca, seca × vento) e{" "}
+          <b>vizinhança espacial</b> (focos e FWI dos 6 municípios mais próximos, com defasagem
+          — antes cada município era tratado como uma ilha). Todas terminam no dia D ou usam
+          defasagem, sem enxergar o futuro.
+        </p>
 
         <h3 className="met-h3">4. Split temporal</h3>
         <p>
@@ -225,11 +239,16 @@ export default function PainelSobre() {
 
         <h3 className="met-h3">5. Modelo</h3>
         <p>
-          Dois classificadores binários, com a mesma cadeia de features:{" "}
-          <b>Random Forest</b> (200 árvores, max_depth=14, min_samples_leaf=20,{" "}
-          <code>class_weight='balanced'</code>) e <b>LightGBM</b> com{" "}
-          <code>scale_pos_weight</code>. O balanceamento é necessário porque a taxa base de
-          foco no dia seguinte é ~1%; sem ele, o modelo "ganharia" prevendo tudo como zero.
+          Dois classificadores binários, com a mesma cadeia de features. O de produção é um{" "}
+          <b>Random Forest com balanceamento por undersampling + ensemble</b>: 15 estimadores
+          (200 árvores cada, max_depth=14, min_samples_leaf=20), cada um treinado em todos os
+          dias com foco mais uma amostra de dias sem foco na razão 3:1, com as probabilidades
+          promediadas. Comparado a apenas reponderar as classes
+          (<code>class_weight='balanced'</code>), essa abordagem deixa cada árvore enxergar uma
+          fração decente de positivos e melhorou recall e lift no top-N. Também é treinado um{" "}
+          <b>LightGBM</b> com <code>scale_pos_weight</code> para comparação. O balanceamento é
+          necessário porque a taxa base de foco no dia seguinte é ~1%; sem ele, o modelo
+          "ganharia" prevendo tudo como zero.
         </p>
 
         <h3 className="met-h3">6. Calibração isotônica</h3>
@@ -252,6 +271,13 @@ export default function PainelSobre() {
           <li><b>Brier score</b> e calibração por bin — saúde da probabilidade absoluta.</li>
           <li>AUC e Average Precision como sanidade global, mas não como métrica primária.</li>
         </ul>
+        <p>
+          Para o caso de uso binário (alertar ou não), o limiar não é fixado em 0,5 — escolhe-se
+          na validação o que maximiza o <b>F2</b> (prioriza recall: deixar passar um foco custa
+          mais que um falso alarme) e só então aplica-se ao teste. Comparamos também calibração{" "}
+          <b>isotônica</b> contra <b>Platt</b>; a isotônica ficou com Brier marginalmente melhor
+          e foi mantida.
+        </p>
 
         <h3 className="met-h3">8. Testes automáticos</h3>
         <p>

@@ -41,6 +41,23 @@ const NOMES_FEATURE = {
   focos_lag_7: "focos no dia D-7",
   bioma_caatinga: "bioma caatinga",
   bioma_mata_atlantica: "bioma mata atlântica",
+  // tendência dinâmica de FWI/meteo
+  fwi_delta_1d: "variação do FWI em 1 dia",
+  fwi_delta_3d: "variação do FWI em 3 dias",
+  fwi_media_3d: "FWI médio (3 dias)",
+  fwi_media_7d: "FWI médio (7 dias)",
+  fwi_max_7d: "FWI máximo (7 dias)",
+  isi_media_3d: "ISI médio (3 dias)",
+  umid_delta_3d: "queda de umidade em 3 dias",
+  temp_max_media_3d: "temp. máxima média (3 dias)",
+  // interações risco × seca
+  fwi_x_dias_sem_chuva: "FWI × dias sem chuva",
+  temp_max_x_dias_sem_chuva: "temp. máxima × dias sem chuva",
+  seca_x_vento: "dias sem chuva × vento",
+  // vizinhança espacial (6 municípios mais próximos)
+  focos_vizinhos_lag_1: "focos nos vizinhos (D-1)",
+  focos_vizinhos_acum_3d: "focos nos vizinhos (3 dias)",
+  fwi_vizinhos: "FWI médio dos vizinhos",
 };
 
 
@@ -347,42 +364,59 @@ export default function PainelRelatorio() {
 
       {aba === "tecnico" && (
         <div className="bloco">
-          <h2>métricas binárias (limiar 0.5)</h2>
+          <h2>métricas binárias (no limiar operacional)</h2>
           <div className="dica" style={{ marginBottom: 8 }}>
-            após a calibração, quase nada passa de 50% de probabilidade — então estas métricas ficam
-            baixas <em>por construção</em>. Servem como referência para um caso de uso binário, mas
-            o modelo é melhor avaliado pelo ranking.
+            o limiar fixo de 0.5 não serve: com taxa base ~1%, após a calibração quase nada passa
+            de 50% e as métricas zeram <em>por construção</em>. Aqui o limiar é escolhido para
+            maximizar o <b>F2</b> na validação — que prioriza <b>recall</b>, porque num alerta de
+            incêndio deixar passar um foco custa mais que um falso alarme. Mostrado no teste.
           </div>
           <table className="tabela">
             <thead>
-              <tr><th>modelo</th><th>precisão</th><th>recall</th><th>F1</th><th>AP</th></tr>
+              <tr><th>modelo</th><th>limiar</th><th>precisão</th><th>recall</th><th>F1</th><th>AP</th></tr>
             </thead>
             <tbody>
-              {Object.keys(rel).filter(k => !k.startsWith("_")).map(k => (
-                <tr key={k}>
-                  <td>{k}</td>
-                  <td>{rel[k].teste.precision.toFixed(3)}</td>
-                  <td>{rel[k].teste.recall.toFixed(3)}</td>
-                  <td>{rel[k].teste.f1.toFixed(3)}</td>
-                  <td>{rel[k].teste.ap?.toFixed(3) || "—"}</td>
-                </tr>
-              ))}
+              {Object.keys(rel).filter(k => !k.startsWith("_")).map(k => {
+                const t = rel[k].teste_no_limiar || rel[k].teste;
+                const thr = rel[k].limiar_operacional;
+                return (
+                  <tr key={k}>
+                    <td>{k}</td>
+                    <td>{thr != null ? thr.toFixed(3) : "0.500"}</td>
+                    <td>{t.precision.toFixed(3)}</td>
+                    <td>{t.recall.toFixed(3)}</td>
+                    <td>{t.f1.toFixed(3)}</td>
+                    <td>{rel[k].teste.ap?.toFixed(3) || "—"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
-          <h2 style={{ marginTop: 16 }}>matriz de confusão (Random Forest, limiar 0.5)</h2>
           {(() => {
-            const c = rel.random_forest.teste.confusao;
+            const principal = rel.random_forest;
+            const thr = principal.limiar_operacional;
+            const c = (principal.teste_no_limiar || principal.teste).confusao;
             return (
-              <table className="tabela">
-                <thead>
-                  <tr><th></th><th>previsto não</th><th>previsto sim</th></tr>
-                </thead>
-                <tbody>
-                  <tr><td>real não</td><td>{c[0][0]}</td><td>{c[0][1]}</td></tr>
-                  <tr><td>real sim</td><td>{c[1][0]}</td><td>{c[1][1]}</td></tr>
-                </tbody>
-              </table>
+              <>
+                <h2 style={{ marginTop: 16 }}>
+                  matriz de confusão (Random Forest, limiar {thr != null ? thr.toFixed(3) : "0.5"})
+                </h2>
+                <table className="tabela">
+                  <thead>
+                    <tr><th></th><th>previsto não</th><th>previsto sim</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>real não</td><td>{c[0][0]}</td><td>{c[0][1]}</td></tr>
+                    <tr><td>real sim</td><td>{c[1][0]}</td><td>{c[1][1]}</td></tr>
+                  </tbody>
+                </table>
+                <div className="dica" style={{ marginTop: 8 }}>
+                  nesse limiar o modelo captura {c[1][0] + c[1][1] > 0
+                    ? `${(c[1][1] / (c[1][0] + c[1][1]) * 100).toFixed(0)}%`
+                    : "—"} dos focos reais ({c[1][1]} de {c[1][0] + c[1][1]}), ao custo de {c[0][1]} falsos alarmes.
+                </div>
+              </>
             );
           })()}
         </div>

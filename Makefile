@@ -1,6 +1,6 @@
 PY=python3
 
-.PHONY: instalar baixar baixar-osm baixar-bioma processar treinar testar servir frontend tudo limpar
+.PHONY: instalar baixar baixar-osm baixar-bioma processar treinar testar servir frontend tudo limpar buscar-hp experimento-balanceamento
 
 instalar:
 	$(PY) -m pip install -r backend/requirements.txt
@@ -25,6 +25,9 @@ processar:
 
 buscar-hp:
 	$(PY) -m backend.modelo.buscar_hiperparams
+
+experimento-balanceamento:
+	$(PY) -m backend.modelo.experimento_balanceamento
 
 treinar:
 	$(PY) -m backend.modelo.treinar

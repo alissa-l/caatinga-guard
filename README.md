@@ -120,6 +120,10 @@ Granularidade: município × dia. 167 × 1827 = 305.109 linhas.
 - **Acumuladas**: chuva_acum_7d, chuva_acum_30d, dias_sem_chuva.
 - **Sazonais**: mes_sin/cos, doy_sin/cos.
 - **Geográficas**: area_km2, centro_lat, centro_lon, distancia_litoral_km, bioma (one-hot caatinga/mata_atlantica).
+- **Dinâmicas** — 14 features que capturam *tendência*, *interação* e *vizinhança espacial*, não só o nível instantâneo:
+  - *Tendência de FWI/meteo*: fwi_delta_1d, fwi_delta_3d, fwi_media_3d, fwi_media_7d, fwi_max_7d, isi_media_3d, umid_delta_3d, temp_max_media_3d.
+  - *Interações risco × seca*: fwi_x_dias_sem_chuva, temp_max_x_dias_sem_chuva, seca_x_vento.
+  - *Vizinhança espacial*: focos_vizinhos_lag_1, focos_vizinhos_acum_3d, fwi_vizinhos (sobre os 6 municípios mais próximos por centroide). Todas usam `shift`/janelas terminando em D — sem vazamento de D+1.
 - **Alvo**: `houve_foco_d1` (1 se houve foco no município no dia D+1).
 
 
@@ -128,16 +132,18 @@ Granularidade: município × dia. 167 × 1827 = 305.109 linhas.
 
 ## Resultados (teste, último semestre de 2024)
 
-| modelo | AUC | AP | precisão | recall | F1 |
-|--------|-----|-----|----------|--------|-----|
-| random_forest balanceado     | **0.777** | 0.039 | 0.046 | **0.339** | 0.081 |
-| random_forest sem balance.   | 0.787 | 0.058 | 0.000 | 0.000 | 0.000 |
-| lightgbm balanceado          | 0.731 | 0.031 | 0.054 | 0.083 | 0.066 |
-| lightgbm sem balance.        | 0.798 | 0.044 | 0.065 | 0.010 | 0.017 |
+Com taxa base ~1%, métricas binárias a limiar 0.5 não dizem nada (após calibração quase nada passa de 50%). A leitura é **operacional, por ranking**: dos focos reais de cada dia, quantos caem no top-K de municípios apontados pelo modelo (`recall@K`) e quanto isso supera um sorteio (`lift@K`).
 
-Random Forest balanceado é o modelo de produção: AUC > 0.7 (acima do critério) e recall não-degenerado.
+| modelo | AUC | AP | recall@10 | lift@10 |
+|--------|-----|-----|-----------|---------|
+| **random_forest** (produção) | **0.817** | **0.062** | **0.336** | **5.60×** |
+| lightgbm | 0.743 | 0.034 | 0.213 | 3.55× |
 
-Sem balanceamento ambos modelos colapsam para sempre prever 0 (recall ~0) — em problema com 0.54% de positivos, balanceamento é obrigatório.
+O modelo de produção é um Random Forest com **balanceamento por undersampling + ensemble** (`BalancedBaggingRF`): 15 estimadores, cada um treinado em todos os positivos + negativos na razão 3:1, com probabilidades promediadas. Num experimento controlado (`backend/modelo/experimento_balanceamento.py`, que compara `class_weight='balanced'`, `balanced_subsample`, undersampling 1:1 e 3:1, `scale_pos_weight` cheio/raiz, `is_unbalance` e focal loss), o bagging 3:1 foi o melhor por AP de validação e generalizou no teste — AP 0.044→0.062 e recall@10 0.26→0.34 sobre o `class_weight='balanced'` anterior.
+
+Sem qualquer balanceamento ambos os modelos colapsam para prever sempre 0 (recall ~0): com ~1% de positivos, balancear é obrigatório.
+
+Para o caso de uso binário (alertar ou não), o limiar não é fixado em 0.5 — após a calibração quase nada passa de 0.5 e as métricas zeram por construção. Escolhe-se na validação o limiar que maximiza **F2** (prioriza recall) e aplica-se ao teste: o RF de produção opera em ~0.032, capturando **61% dos focos** (183 de 301) ao custo de ~4100 falsos alarmes no semestre. A calibração permanece **isotônica** — num teste direto contra Platt (sigmoid), a isotônica teve Brier marginalmente melhor (0.00951 vs 0.00957).
 
 ## API
 
@@ -169,6 +175,7 @@ Sem balanceamento ambos modelos colapsam para sempre prever 0 (recall ~0) — em
 - **Persistência climática** para previsões D+2 em diante. Sem entrada de previsão numérica de tempo, confiabilidade cai rápido.
 - **Bioma aproximado** por longitude. Ideal: sobrepor com shapefile oficial IBGE/IBAMA de biomas.
 - **Sem OSM** na entrega atual (densidade de estradas, cobertura natural). O script de download existe mas o ETL trata como opcional.
+- **Simulação não recalcula features derivadas.** O endpoint `/previsao/simulacao` (sliders de temperatura/umidade/chuva/vento) ajusta apenas a meteorologia bruta; FWI e as features de tendência/vizinhança mantêm o valor do dataset. A probabilidade simulada é, portanto, uma aproximação — reage à meteorologia direta, não ao FWI recomputado.
 
 ## Reprodução completa
 

@@ -307,6 +307,12 @@ def montar():
     df = ft.adicionar_dias_sem_chuva(df)
     df = ft.adicionar_focos_acumulados(df, janelas=(30, 90))
     df = ft.adicionar_sazonalidade(df)
+    # FASE 1: features dinamicas (tendencia de FWI/meteo, interacoes risco x
+    # seca, vizinhanca espacial). Dependem de fwi/isi/n_focos/dias_sem_chuva e
+    # dos centroides, todos ja presentes neste ponto.
+    df = ft.adicionar_tendencias_meteo(df)
+    df = ft.adicionar_interacoes(df)
+    df = ft.adicionar_vizinhanca(df, k=6)
     df = ft.adicionar_alvo(df)
 
     # taxas historicas: mean encoding com corte de treino vindo do config.
